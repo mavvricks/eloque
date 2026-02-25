@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ReceiptModal from '../../components/common/ReceiptModal';
 
 const PAYMENT_TYPE_LABELS = {
-    Reservation: { label: 'Reservation Payment', pct: '10%', color: 'blue' },
-    DownPayment: { label: 'Down Payment', pct: '70%', color: 'amber' },
-    Final: { label: 'Final Payment', pct: '20%', color: 'green' },
+    DownPayment: { label: 'Down Payment', pct: '50%', color: 'amber' },
+    Final: { label: 'Final Payment', pct: '50%', color: 'green' },
 };
 
 const Tooltip = ({ text }) => {
@@ -47,6 +47,9 @@ const ClientDashboard = () => {
     // Cancel modal state
     const [cancelModal, setCancelModal] = useState({ open: false, bookingId: null });
     const [cancelLoading, setCancelLoading] = useState(false);
+
+    // Receipt Modal state
+    const [receiptModal, setReceiptModal] = useState({ isOpen: false, payment: null, booking: null });
 
     useEffect(() => {
         fetchData();
@@ -93,6 +96,38 @@ const ClientDashboard = () => {
             updated[bookingId] = Object.assign({}, updated[bookingId], { [field]: value });
             return updated;
         });
+    };
+
+    const handleFileUpload = async (bookingId, e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setSaveMessage(prev => ({ ...prev, [bookingId]: { type: 'success', text: 'Uploading image...' } }));
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:3000/api/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const data = await res.json();
+            if (res.ok) {
+                handleDetailChange(bookingId, 'theme_uploads', data.url);
+                setSaveMessage(prev => ({
+                    ...prev, [bookingId]: {
+                        type: 'success', text: 'Image uploaded successfully. Do not forget to save!'
+                    }
+                }));
+            } else {
+                setSaveMessage(prev => ({ ...prev, [bookingId]: { type: 'error', text: data.error || 'Upload failed' } }));
+            }
+        } catch (err) {
+            setSaveMessage(prev => ({ ...prev, [bookingId]: { type: 'error', text: 'Error uploading file' } }));
+        }
     };
 
     const saveEventDetails = async (bookingId) => {
@@ -364,6 +399,44 @@ const ClientDashboard = () => {
 
                                         <div className="border-t border-gray-100">
 
+                                            {/* ---- Live Status Tracker ---- */}
+                                            {booking.status !== 'Cancelled' && (
+                                                <div className="px-5 pt-5 pb-2">
+                                                    {(() => {
+                                                        const phases = ['Not Started', 'On the Way', 'Preparing', 'Serving', 'Completed'];
+                                                        const currentIdx = phases.indexOf(booking.live_status || 'Not Started');
+                                                        return (
+                                                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                                                                <div className="flex justify-between items-center mb-6">
+                                                                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide flex items-center">
+                                                                        <svg className="w-4 h-4 mr-2 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                                        Live Event Status
+                                                                    </h4>
+                                                                    <span className="px-3 py-1 bg-white border border-gray-200 text-primary-600 font-bold text-xs rounded-full shadow-sm">{booking.live_status || 'Not Started'}</span>
+                                                                </div>
+                                                                <div className="relative flex justify-between px-2 sm:px-4">
+                                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-gray-200 rounded-full"></div>
+                                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary-500 rounded-full transition-all duration-700" style={{ width: `${(Math.max(0, currentIdx) / (phases.length - 1)) * 100}%` }}></div>
+
+                                                                    {phases.map((phase, idx) => {
+                                                                        const isPast = idx < currentIdx;
+                                                                        const isCurrent = idx === currentIdx;
+                                                                        return (
+                                                                            <div key={phase} className="relative flex flex-col items-center">
+                                                                                <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 z-10 flex items-center justify-center transition-all duration-500 ${isPast ? 'bg-primary-500 border-primary-500 shadow-md' : isCurrent ? 'bg-white border-primary-500 ring-4 ring-primary-100 scale-110' : 'bg-white border-gray-300'}`}>
+                                                                                    {isPast && <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                                                </div>
+                                                                                <span className={`absolute top-8 sm:top-10 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${isCurrent ? 'text-primary-700' : isPast ? 'text-gray-600' : 'text-gray-400'}`}>{phase}</span>
+                                                                            </div>
+                                                                        )
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            )}
+
                                             {/* ---- Action Buttons (Cancel / Edit) ---- */}
                                             <div className="px-5 pt-4 flex gap-3 justify-end">
                                                 {canModify && (
@@ -425,7 +498,17 @@ const ClientDashboard = () => {
                                                                     <p className="text-xl font-bold text-gray-900">{'₱' + (payment.amount ? payment.amount.toLocaleString() : '0')}</p>
                                                                     <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-400 flex justify-between items-center">
                                                                         <span>{'Due: ' + (payment.due_date || '-')}</span>
-                                                                        {isPaid && <span className="text-green-600 font-medium">Verified</span>}
+                                                                        {isPaid && (
+                                                                            <div className="flex gap-2 items-center">
+                                                                                <span className="text-green-600 font-medium">Verified</span>
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); setReceiptModal({ isOpen: true, payment: payment, booking: booking }); }}
+                                                                                    className="text-primary-600 hover:text-primary-800 underline font-medium"
+                                                                                >
+                                                                                    Receipt
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                     {!isPaid && (
                                                                         <button onClick={function (e) { e.stopPropagation(); navigate('/pay?paymentId=' + payment.id + '&bookingId=' + booking.id + '&amount=' + payment.amount + '&type=' + payment.payment_type); }}
@@ -493,6 +576,32 @@ const ClientDashboard = () => {
                                                             <Tooltip text="Your event's color theme for table settings, decorations, and styling." />
                                                         </label>
                                                         <input type="text" placeholder="e.g. Blush Pink & Gold, Navy Blue & Silver" value={eventDetailsForm[booking.id]?.color_motif || ''} onChange={function (e) { handleDetailChange(booking.id, 'color_motif', e.target.value); }}
+                                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700" />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-xs text-gray-600 mb-1 font-medium">
+                                                            Theme Inspiration Upload
+                                                            <Tooltip text="Upload an image to show us your envisioned theme or color motif." />
+                                                        </label>
+
+                                                        {eventDetailsForm[booking.id]?.theme_uploads && (
+                                                            <div className="mb-3 relative group w-fit">
+                                                                <img src={`http://localhost:3000${eventDetailsForm[booking.id]?.theme_uploads}`} alt="Theme Inspo" className="h-32 rounded border border-gray-200 object-cover shadow-sm" />
+                                                                <button onClick={() => handleDetailChange(booking.id, 'theme_uploads', '')} className="absolute top-1 right-1 bg-white rounded-full p-1 shadow hover:bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        <input type="file" accept="image/*" onChange={(e) => handleFileUpload(booking.id, e)} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer" />
+                                                    </div>
+
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-xs text-gray-600 mb-1 font-medium">
+                                                            Special Instructions & Dietary Restrictions
+                                                            <Tooltip text="Let us know if you have any special instructions, allergies, dietary constraints, or a note for the chef." />
+                                                        </label>
+                                                        <textarea rows="3" placeholder="e.g. 2 guests are vegan, please prepare a special plate. Add more flowers to the VIP table." value={eventDetailsForm[booking.id]?.special_instructions || ''} onChange={(e) => handleDetailChange(booking.id, 'special_instructions', e.target.value)}
                                                             className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700" />
                                                     </div>
                                                 </div>
@@ -757,6 +866,14 @@ const ClientDashboard = () => {
                     </div>
                 )
             }
+
+            {/* Receipt Modal */}
+            <ReceiptModal
+                isOpen={receiptModal.isOpen}
+                onClose={() => setReceiptModal({ isOpen: false, payment: null, booking: null })}
+                payment={receiptModal.payment}
+                booking={receiptModal.booking}
+            />
 
             {/* ======================== TOAST ======================== */}
             {

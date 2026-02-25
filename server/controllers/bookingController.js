@@ -17,7 +17,7 @@ const createBooking = (req, res) => {
         const {
             user_id, event_date, event_time, pax, budget, package_id,
             client_full_name, venue_address_line, venue_street, venue_city, venue_province, venue_zip_code,
-            client_email, client_phone, total_cost
+            client_email, client_phone, total_cost, outsourced_services, selected_menu, venue_building_details
         } = req.body;
         console.log("Creating booking:", req.body);
 
@@ -48,15 +48,19 @@ const createBooking = (req, res) => {
         const insertStmt = db.prepare(`
             INSERT INTO bookings (user_id, event_date, event_time, pax, budget, package_id,
                 client_full_name, venue_address_line, venue_street, venue_city, venue_province, venue_zip_code,
-                client_email, client_phone, total_cost)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                client_email, client_phone, total_cost, outsourced_services, selected_menu, venue_building_details)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
+
+        // Stringify arrays if they exist, otherwise null
+        const outsourcedStr = outsourced_services ? (typeof outsourced_services === 'string' ? outsourced_services : JSON.stringify(outsourced_services)) : null;
+        const menuStr = selected_menu ? (typeof selected_menu === 'string' ? selected_menu : JSON.stringify(selected_menu)) : null;
 
         const info = insertStmt.run(
             user_id, event_date, event_time, pax, budget, package_id,
             client_full_name || null, venue_address_line || null, venue_street || null,
             venue_city || null, venue_province || null, venue_zip_code || null,
-            client_email || null, client_phone || null, total_cost || budget || null
+            client_email || null, client_phone || null, total_cost || budget || null, outsourcedStr, menuStr, venue_building_details || null
         );
 
         // Auto-generate 3-tier payment schedule
@@ -76,10 +80,10 @@ const createBooking = (req, res) => {
                     VALUES (?, ?, 'Pending', CURRENT_TIMESTAMP, 'Pending', ?, ?)
                 `);
 
-                insertPayment.run(bookingId, Math.round(cost * 0.10 * 100) / 100, 'Reservation', reservationDue);
-                insertPayment.run(bookingId, Math.round(cost * 0.70 * 100) / 100, 'DownPayment', downPaymentDue.toISOString().split('T')[0]);
-                insertPayment.run(bookingId, Math.round(cost * 0.20 * 100) / 100, 'Final', finalDue.toISOString().split('T')[0]);
-                console.log(`Created 3 payment schedule rows for booking #${bookingId}`);
+                // 2 Payment Tranches: 50% Downpayment (due at reservation), 50% Final (due 10 days before)
+                insertPayment.run(bookingId, Math.round(cost * 0.50 * 100) / 100, 'DownPayment', reservationDue);
+                insertPayment.run(bookingId, Math.round(cost * 0.50 * 100) / 100, 'Final', finalDue.toISOString().split('T')[0]);
+                console.log(`Created 2 payment schedule rows for booking #${bookingId}`);
             }
         } catch (paymentError) {
             console.error("Payment schedule creation failed (booking still created):", paymentError);
@@ -132,7 +136,10 @@ const updateEventDetails = (req, res) => {
     try {
         const { id } = req.params;
         const user_id = req.user.user_id;
-        const { reservation_time, serving_time, event_timeline, color_motif } = req.body;
+        const {
+            reservation_time, serving_time, event_timeline, color_motif,
+            theme_uploads, special_instructions, venue_building_details
+        } = req.body;
 
         // Verify the booking belongs to this user
         const bookingStmt = db.prepare("SELECT * FROM bookings WHERE id = ? AND user_id = ?");
@@ -144,15 +151,22 @@ const updateEventDetails = (req, res) => {
 
         const updateStmt = db.prepare(`
             UPDATE bookings
-            SET reservation_time = ?, serving_time = ?, event_timeline = ?, color_motif = ?
+            SET reservation_time = ?, serving_time = ?, event_timeline = ?, color_motif = ?,
+                theme_uploads = ?, special_instructions = ?, venue_building_details = ?
             WHERE id = ? AND user_id = ?
         `);
+
+        // Stringify theme_uploads if array
+        const themeUploadsStr = theme_uploads ? (typeof theme_uploads === 'string' ? theme_uploads : JSON.stringify(theme_uploads)) : null;
 
         updateStmt.run(
             reservation_time || null,
             serving_time || null,
             event_timeline || null,
             color_motif || null,
+            themeUploadsStr,
+            special_instructions || null,
+            venue_building_details || null,
             id,
             user_id
         );

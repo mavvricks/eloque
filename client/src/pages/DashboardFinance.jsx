@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ReceiptModal from '../components/common/ReceiptModal';
 
 const PAYMENT_TYPE_LABELS = {
-    Reservation: { label: 'Reservation Payment', pct: '10%', icon: 'R' },
-    DownPayment: { label: 'Down Payment', pct: '70%', icon: 'D' },
-    Final: { label: 'Final Payment', pct: '20%', icon: 'F' },
+    DownPayment: { label: 'Down Payment', pct: '50%', icon: 'D' },
+    Final: { label: 'Final Payment', pct: '50%', icon: 'F' },
 };
 
 const DashboardFinance = () => {
@@ -17,14 +17,20 @@ const DashboardFinance = () => {
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
     const [expandedBooking, setExpandedBooking] = useState(null);
+    const [receiptModal, setReceiptModal] = useState({ isOpen: false, payment: null, booking: null });
 
-    const [ledgerFilter, setLedgerFilter] = useState({ status: 'All', startDate: '', endDate: '' });
+    // Refund Management State
+    const [refundQueue, setRefundQueue] = useState([]);
+
+    const [ledgerFilter, setLedgerFilter] = useState({ status: 'All', startDate: '', endDate: '', clientSearch: '', packageFilter: 'All' });
 
     useEffect(() => {
         if (activeTab === 'bookings') {
             fetchBookings();
-        } else {
+        } else if (activeTab === 'ledger') {
             fetchLedger();
+        } else if (activeTab === 'refunds') {
+            fetchRefundQueue();
         }
     }, [activeTab, ledgerFilter]);
 
@@ -111,16 +117,74 @@ const DashboardFinance = () => {
         return { verified: verified, total: payments.length };
     };
 
+    const handleSendReminder = async (paymentId) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://localhost:3000/api/finance/remind/${paymentId}`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) {
+                setToast({ message: 'Reminder sent to client successfully!', type: 'success' });
+            } else {
+                setToast({ message: 'Failed to send reminder.', type: 'error' });
+            }
+        } catch (error) {
+            console.error("Error sending reminder:", error);
+            setToast({ message: 'Error sending reminder.', type: 'error' });
+        }
+    };
+
+    const fetchRefundQueue = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('http://localhost:3000/api/finance/refunds/queue', {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            const data = await res.json();
+            setRefundQueue(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Error fetching refund queue:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleProcessRefund = async (bookingId) => {
+        if (!window.confirm(`Are you sure you want to process the refund for booking #${bookingId}? This will deduct the 10% reservation fee automatically.`)) {
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`http://localhost:3000/api/finance/refund/${bookingId}`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            if (res.ok) {
+                setToast({ message: 'Refund processed successfully!', type: 'success' });
+                fetchRefundQueue();
+            } else {
+                setToast({ message: 'Failed to process refund.', type: 'error' });
+            }
+        } catch (error) {
+            console.error("Error processing refund:", error);
+            setToast({ message: 'Error processing refund.', type: 'error' });
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
             <nav className="bg-white shadow-sm border-b border-gray-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
-                            <h1 className="text-xl font-bold font-display text-primary-600">Eloquente Finance</h1>
+                            <h1 className="text-xl font-bold font-display text-primary-600">Eloquente Accounting</h1>
                         </div>
                         <div className="flex items-center">
-                            <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-4">Finance View</div>
+                            <div className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mr-4">Accounting View</div>
                             <span className="text-gray-700 mr-4">{user && user.username}</span>
                             <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-gray-900">Logout</button>
                         </div>
@@ -142,6 +206,12 @@ const DashboardFinance = () => {
                             className={activeTab === 'ledger' ? 'border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm' : 'border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'}
                         >
                             Transaction Ledger
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('refunds')}
+                            className={activeTab === 'refunds' ? 'border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm' : 'border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm'}
+                        >
+                            Refund Management
                         </button>
                     </nav>
                 </div>
@@ -287,9 +357,27 @@ const DashboardFinance = () => {
                                                                                         >
                                                                                             Reject
                                                                                         </button>
+                                                                                        {(payment.status === 'Pending' || new Date(payment.due_date) < new Date()) && (
+                                                                                            <button
+                                                                                                onClick={function (e) { e.stopPropagation(); handleSendReminder(payment.id); }}
+                                                                                                className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors flex items-center gap-1"
+                                                                                            >
+                                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                                                                                                Remind
+                                                                                            </button>
+                                                                                        )}
                                                                                     </div>
                                                                                 ) : payment.status === 'Verified' ? (
-                                                                                    <span className="text-green-600 text-xs font-medium">Verified</span>
+                                                                                    <div className="flex justify-end items-center gap-3">
+                                                                                        <span className="text-green-600 text-xs font-medium">Verified</span>
+                                                                                        <button
+                                                                                            onClick={function (e) { e.stopPropagation(); setReceiptModal({ isOpen: true, payment: payment, booking: booking }); }}
+                                                                                            className="text-primary-600 hover:text-primary-800 text-xs font-medium underline flex items-center gap-1"
+                                                                                        >
+                                                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                                            Receipt
+                                                                                        </button>
+                                                                                    </div>
                                                                                 ) : (
                                                                                     <span className="text-gray-400 text-xs">-</span>
                                                                                 )}
@@ -331,6 +419,30 @@ const DashboardFinance = () => {
                 {activeTab === 'ledger' && (
                     <div>
                         <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 items-end">
+                            <div className="flex flex-col flex-1 min-w-[200px]">
+                                <label className="text-xs font-medium text-gray-500 mb-1">Search Client</label>
+                                <input
+                                    type="text"
+                                    placeholder="Search by name..."
+                                    value={ledgerFilter.clientSearch || ''}
+                                    onChange={function (e) { setLedgerFilter(Object.assign({}, ledgerFilter, { clientSearch: e.target.value })); }}
+                                    className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                                />
+                            </div>
+                            <div className="flex flex-col min-w-[150px]">
+                                <label className="text-xs font-medium text-gray-500 mb-1">Package</label>
+                                <select
+                                    value={ledgerFilter.packageFilter || 'All'}
+                                    onChange={function (e) { setLedgerFilter(Object.assign({}, ledgerFilter, { packageFilter: e.target.value })); }}
+                                    className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                >
+                                    <option value="All">All Packages</option>
+                                    <option value="standard">Standard</option>
+                                    <option value="deluxe">Deluxe</option>
+                                    <option value="premium">Premium</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
                             <div className="flex flex-col">
                                 <label className="text-xs font-medium text-gray-500 mb-1">Status</label>
                                 <select
@@ -367,51 +479,140 @@ const DashboardFinance = () => {
                         <div className="bg-white shadow overflow-hidden rounded-xl">
                             {loading ? (
                                 <div className="p-6 text-center text-gray-500">Loading transactions...</div>
-                            ) : ledgerPayments.length === 0 ? (
-                                <div className="p-6 text-center text-gray-500">No records found.</div>
-                            ) : (
+                            ) : (() => {
+                                const filteredLedgerPayments = ledgerPayments.filter(p => {
+                                    if (ledgerFilter.clientSearch && !((p.client_full_name || p.username || '').toLowerCase().includes(ledgerFilter.clientSearch.toLowerCase()))) return false;
+                                    if (ledgerFilter.packageFilter && ledgerFilter.packageFilter !== 'All' && p.package_id !== ledgerFilter.packageFilter) return false;
+                                    return true;
+                                });
+
+                                if (filteredLedgerPayments.length === 0) {
+                                    return <div className="p-6 text-center text-gray-500">No records found matching filters.</div>;
+                                }
+
+                                return (
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-gray-50 border-b border-gray-200">
+                                            <tr className="text-xs uppercase text-gray-400">
+                                                <th className="text-left py-3 px-4">ID</th>
+                                                <th className="text-left py-3 px-4">Client</th>
+                                                <th className="text-left py-3 px-4">Package</th>
+                                                <th className="text-left py-3 px-4">Type</th>
+                                                <th className="text-right py-3 px-4">Amount</th>
+                                                <th className="text-center py-3 px-4">Due Date</th>
+                                                <th className="text-center py-3 px-4">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredLedgerPayments.map(function (p) {
+                                                var badge = getStatusBadge(p.status, p.due_date);
+                                                var typeInfo = PAYMENT_TYPE_LABELS[p.payment_type] || { label: p.payment_type || 'Legacy', icon: '-' };
+                                                var pkg = p.package_id ? (p.package_id.charAt(0).toUpperCase() + p.package_id.slice(1)) : 'Custom';
+                                                return (
+                                                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
+                                                        <td className="py-3 px-4 text-gray-500">{'#' + p.id}</td>
+                                                        <td className="py-3 px-4 font-medium text-gray-900">{p.client_full_name || p.username}</td>
+                                                        <td className="py-3 px-4 text-gray-600">{pkg}</td>
+                                                        <td className="py-3 px-4">
+                                                            <span className="flex items-center gap-1.5">
+                                                                <span>{typeInfo.icon}</span>
+                                                                <span>{typeInfo.label}</span>
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-3 px-4 text-right font-semibold">{'P' + (p.amount ? p.amount.toLocaleString() : '0')}</td>
+                                                        <td className="py-3 px-4 text-center text-gray-600">{p.due_date || '-'}</td>
+                                                        <td className="py-3 px-4 text-center">
+                                                            <span className={'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ' + badge.cls}>
+                                                                {badge.text}
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'refunds' && (
+                    <div className="bg-white shadow overflow-hidden rounded-xl">
+                        <div className="px-6 py-5 border-b border-gray-200">
+                            <h3 className="text-lg font-bold text-gray-900">Refund Management Queue</h3>
+                            <p className="text-sm text-gray-500 mt-1">Process manual financial returns for cancelled events outside the 7-day lock-in period. A 10% reservation fee will be deducted.</p>
+                        </div>
+                        {loading ? (
+                            <div className="p-6 text-center text-gray-500">Loading refund queue...</div>
+                        ) : refundQueue.length === 0 ? (
+                            <div className="p-12 text-center flex flex-col items-center">
+                                <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-4">
+                                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                </div>
+                                <h3 className="text-lg font-medium text-gray-900">Queue is Empty</h3>
+                                <p className="text-gray-500 mt-1 max-w-sm">There are currently no cancelled bookings with un-refunded payments.</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead className="bg-gray-50 border-b border-gray-200">
-                                        <tr className="text-xs uppercase text-gray-400">
-                                            <th className="text-left py-3 px-4">ID</th>
-                                            <th className="text-left py-3 px-4">Client</th>
-                                            <th className="text-left py-3 px-4">Type</th>
-                                            <th className="text-right py-3 px-4">Amount</th>
-                                            <th className="text-center py-3 px-4">Due Date</th>
-                                            <th className="text-center py-3 px-4">Status</th>
+                                        <tr>
+                                            <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-wider text-xs w-20">Booking ID</th>
+                                            <th className="px-6 py-4 text-left font-bold text-gray-700 uppercase tracking-wider text-xs">Client Name</th>
+                                            <th className="px-6 py-4 text-center font-bold text-gray-700 uppercase tracking-wider text-xs">Event Date</th>
+                                            <th className="px-6 py-4 text-right font-bold text-gray-700 uppercase tracking-wider text-xs hidden md:table-cell">Total Paid</th>
+                                            <th className="px-6 py-4 text-right font-bold text-gray-700 uppercase tracking-wider text-xs">Refund Amount (minus 10%)</th>
+                                            <th className="px-6 py-4 text-right font-bold text-gray-700 uppercase tracking-wider text-xs">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {ledgerPayments.map(function (p) {
-                                            var badge = getStatusBadge(p.status, p.due_date);
-                                            var typeInfo = PAYMENT_TYPE_LABELS[p.payment_type] || { label: p.payment_type || 'Legacy', icon: '-' };
+                                        {refundQueue.map((item) => {
+                                            // Deduct 10% penalty for late cancellation
+                                            const penalty = item.total_paid * 0.10;
+                                            const refundAmount = item.total_paid - penalty;
+
                                             return (
-                                                <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                                    <td className="py-3 px-4 text-gray-500">{'#' + p.id}</td>
-                                                    <td className="py-3 px-4 font-medium text-gray-900">{p.client_full_name || p.username}</td>
-                                                    <td className="py-3 px-4">
-                                                        <span className="flex items-center gap-1.5">
-                                                            <span>{typeInfo.icon}</span>
-                                                            <span>{typeInfo.label}</span>
-                                                        </span>
+                                                <tr key={item.booking_id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                                                    <td className="px-6 py-4 text-left font-semibold text-gray-900">#{item.booking_id}</td>
+                                                    <td className="px-6 py-4 text-left">
+                                                        <div className="font-semibold text-gray-900">{item.client_full_name}</div>
+                                                        <div className="text-xs text-gray-500 mt-0.5">{item.client_email}</div>
                                                     </td>
-                                                    <td className="py-3 px-4 text-right font-semibold">{'P' + (p.amount ? p.amount.toLocaleString() : '0')}</td>
-                                                    <td className="py-3 px-4 text-center text-gray-600">{p.due_date || '-'}</td>
-                                                    <td className="py-3 px-4 text-center">
-                                                        <span className={'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ' + badge.cls}>
-                                                            {badge.text}
-                                                        </span>
+                                                    <td className="px-6 py-4 text-center text-gray-600 font-medium whitespace-nowrap">{item.event_date}</td>
+                                                    <td className="px-6 py-4 text-right hidden md:table-cell text-gray-500 line-through">
+                                                        ₱{item.total_paid ? item.total_paid.toLocaleString() : '0'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right font-bold text-primary-700">
+                                                        ₱{refundAmount > 0 ? refundAmount.toLocaleString() : '0'}
+                                                        <div className="text-[10px] text-gray-400 font-normal mt-1">(₱{penalty.toLocaleString()} fee deducted)</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleProcessRefund(item.booking_id)}
+                                                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 whitespace-nowrap"
+                                                        >
+                                                            Process Refund
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
                                         })}
                                     </tbody>
                                 </table>
-                            )}
-                        </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </main>
+
+            {/* Receipt Modal */}
+            <ReceiptModal
+                isOpen={receiptModal.isOpen}
+                onClose={() => setReceiptModal({ isOpen: false, payment: null, booking: null })}
+                payment={receiptModal.payment}
+                booking={receiptModal.booking}
+            />
 
             {toast && (
                 <div className="fixed bottom-6 right-6 z-50 animate-slideUp">

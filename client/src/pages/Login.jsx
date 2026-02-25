@@ -24,10 +24,9 @@ const Login = () => {
                 console.log("Login successful, navigating to dashboard for role:", result.role);
                 const rolePaths = {
                     'Client': '/',
-                    'Operations': '/dashboard/ops',
-                    'Admin': '/dashboard/admin',
-                    'SuperAdmin': '/dashboard/admin',
-                    'Finance': '/dashboard/finance'
+                    'Marketing': '/dashboard/ops',
+                    'Superadmin': '/dashboard/admin',
+                    'Accounting': '/dashboard/finance'
                 };
                 const targetPath = rolePaths[result.role] || '/';
                 navigate(targetPath);
@@ -120,13 +119,6 @@ const Login = () => {
                     </p>
                 </div>
 
-                <div className="text-center text-xs text-gray-400 border-t pt-4 mt-4">
-                    <p>Demo Credentials:</p>
-                    <p>admin / password123</p>
-                    <p>ops / password123</p>
-                    <p>fin / password123</p>
-                    <p>client / password123</p>
-                </div>
             </div>
         </div>
     );

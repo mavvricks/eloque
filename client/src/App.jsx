@@ -27,10 +27,9 @@ const ProtectedRoute = ({ allowedRoles }) => {
         // Redirect to their appropriate dashboard if they try to access unauthorized route
         const rolePath = {
             'Client': '/dashboard/client',
-            'Operations': '/dashboard/ops',
-            'Admin': '/dashboard/admin',
-            'SuperAdmin': '/dashboard/admin',
-            'Finance': '/dashboard/finance'
+            'Marketing': '/dashboard/ops',
+            'Superadmin': '/dashboard/admin',
+            'Accounting': '/dashboard/finance'
         };
         return <Navigate to={rolePath[user.role] || '/login'} replace />;
     }
@@ -59,17 +58,17 @@ function App() {
                     </Route>
 
                     {/* Ops Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['Operations', 'Admin', 'SuperAdmin']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['Marketing', 'Superadmin']} />}>
                         <Route path="/dashboard/ops" element={<DashboardOps />} />
                     </Route>
 
                     {/* Finance Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['Finance']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['Accounting']} />}>
                         <Route path="/dashboard/finance" element={<DashboardFinance />} />
                     </Route>
 
                     {/* Admin Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['Admin', 'SuperAdmin']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['Superadmin']} />}>
                         <Route path="/dashboard/admin" element={<DashboardAdmin />} />
                     </Route>
 

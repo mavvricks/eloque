@@ -88,7 +88,10 @@ const BookingWizard = () => {
             venue_zip_code: merged.venue_zip_code,
             client_email: merged.client_email,
             client_phone: merged.client_phone,
-            total_cost: merged.totalCost || merged.budget
+            total_cost: merged.totalCost || merged.budget,
+            outsourced_services: merged.outsourced_services,
+            selected_menu: merged.customMenu,
+            venue_building_details: merged.venue_building_details
         };
 
         try {

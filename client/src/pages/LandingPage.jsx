@@ -93,9 +93,9 @@ const LandingPage = () => {
                                     <Link
                                         to={
                                             user.role === 'Client' ? '/dashboard/client' :
-                                                user.role === 'Operations' ? '/dashboard/ops' :
-                                                    user.role === 'Finance' ? '/dashboard/finance' :
-                                                        (user.role === 'Admin' || user.role === 'SuperAdmin') ? '/dashboard/admin' : '/'
+                                                user.role === 'Marketing' ? '/dashboard/ops' :
+                                                    user.role === 'Accounting' ? '/dashboard/finance' :
+                                                        (user.role === 'Superadmin') ? '/dashboard/admin' : '/'
                                         }
                                         className="text-white hover:text-yellow-400 text-sm font-medium uppercase tracking-wider"
                                     >

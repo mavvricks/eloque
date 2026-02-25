@@ -21,6 +21,30 @@ exports.getAllBookings = async (req, res) => {
     }
 };
 
+exports.updateBookingLiveStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { live_status } = req.body;
+
+        const validStatuses = ['Not Started', 'On the Way', 'Preparing', 'Serving', 'Completed'];
+        if (!validStatuses.includes(live_status)) {
+            return res.status(400).json({ error: "Invalid live status" });
+        }
+
+        const stmt = db.prepare('UPDATE bookings SET live_status = ? WHERE id = ?');
+        const info = stmt.run(live_status, id);
+
+        if (info.changes === 0) {
+            return res.status(404).json({ error: "Booking not found" });
+        }
+
+        res.json({ success: true, message: "Live status updated" });
+    } catch (error) {
+        console.error("Error updating live status:", error);
+        res.status(500).json({ error: "Failed to update live status" });
+    }
+};
+
 exports.updateBookingStatus = async (req, res) => {
     try {
         const { id } = req.params;

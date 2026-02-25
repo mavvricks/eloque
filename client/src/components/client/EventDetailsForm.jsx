@@ -1,6 +1,20 @@
 import { useState } from 'react';
 import Modal from '../common/Modal';
 
+const Tooltip = ({ text }) => {
+    return (
+        <div className="relative group inline-block ml-2 cursor-help font-normal">
+            <svg className="w-4 h-4 text-gray-400 hover:text-primary-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-900 text-white text-xs rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none">
+                {text}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+            </div>
+        </div>
+    );
+};
+
 const EventDetailsForm = ({ bookingData, updateBooking, onSubmit, onBack, user }) => {
     const [formData, setFormData] = useState({
         client_full_name: bookingData.client_full_name || '',
@@ -11,6 +25,10 @@ const EventDetailsForm = ({ bookingData, updateBooking, onSubmit, onBack, user }
         venue_city: bookingData.venue_city || '',
         venue_province: bookingData.venue_province || '',
         venue_zip_code: bookingData.venue_zip_code || '',
+        venue_building_details: bookingData.venue_building_details || '',
+        outsourced_emcee: bookingData.outsourced_services?.includes('Emcee') || false,
+        outsourced_photographer: bookingData.outsourced_services?.includes('Photographer') || false,
+        outsourced_lights_sound: bookingData.outsourced_services?.includes('Lights & Sound') || false,
     });
 
     const [showTasting, setShowTasting] = useState(false);
@@ -27,7 +45,8 @@ const EventDetailsForm = ({ bookingData, updateBooking, onSubmit, onBack, user }
     const [modal, setModal] = useState({ isOpen: false, type: 'info', title: '', message: '' });
 
     const handleChange = (e) => {
-        const updated = { ...formData, [e.target.name]: e.target.value };
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const updated = { ...formData, [e.target.name]: value };
         setFormData(updated);
         // Keep tasting fields in sync if "same as above" is checked
         if (sameAsAbove) {
@@ -66,9 +85,16 @@ const EventDetailsForm = ({ bookingData, updateBooking, onSubmit, onBack, user }
             return;
         }
 
+        // Collect selected outsourced services
+        const selectedServices = [];
+        if (formData.outsourced_emcee) selectedServices.push("Emcee");
+        if (formData.outsourced_photographer) selectedServices.push("Photographer");
+        if (formData.outsourced_lights_sound) selectedServices.push("Lights & Sound");
+
         // Build final data and pass directly to onSubmit (avoids stale state)
         const finalData = {
             ...formData,
+            outsourced_services: selectedServices,
             tasting_guest_name: tastingData.guest_name,
             tasting_guest_email: tastingData.guest_email,
             tasting_guest_phone: tastingData.guest_phone,
@@ -205,6 +231,63 @@ const EventDetailsForm = ({ bookingData, updateBooking, onSubmit, onBack, user }
                                     className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700"
                                 />
                             </div>
+                            <div className="md:col-span-2 mt-4 space-y-1 block">
+                                <label className="block text-xs text-gray-500 mb-1 font-medium">Building / Floor / High-Rise Details (Optional)</label>
+                                <input
+                                    type="text"
+                                    name="venue_building_details"
+                                    placeholder="e.g. 15th Floor, Tower 2 (High-rise venues incur 3% surcharge)"
+                                    value={formData.venue_building_details}
+                                    onChange={handleChange}
+                                    className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Outsourced Services */}
+                <div className="max-w-3xl mx-auto w-full">
+                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:border-primary-300 transition-colors">
+                        <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide flex items-center">
+                            Outsourced Services Recommendations
+                            <Tooltip text="We can recommend trusted third-party services. Note: Checking these boxes will NOT add them to your official billing." />
+                        </label>
+                        <p className="text-xs text-gray-500 mb-4">Check the boxes below if you need recommendations for these services. This is not added to your final bill.</p>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-white hover:border-primary-300 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    name="outsourced_emcee"
+                                    checked={formData.outsourced_emcee}
+                                    onChange={handleChange}
+                                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                />
+                                <span className="font-medium text-gray-700 select-none">Emcee</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-white hover:border-primary-300 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    name="outsourced_photographer"
+                                    checked={formData.outsourced_photographer}
+                                    onChange={handleChange}
+                                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                />
+                                <span className="font-medium text-gray-700 select-none">Photographer</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-white hover:border-primary-300 transition-colors">
+                                <input
+                                    type="checkbox"
+                                    name="outsourced_lights_sound"
+                                    checked={formData.outsourced_lights_sound}
+                                    onChange={handleChange}
+                                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                />
+                                <span className="font-medium text-gray-700 select-none">Lights & Sound</span>
+                            </label>
                         </div>
                     </div>
                 </div>

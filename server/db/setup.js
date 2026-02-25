@@ -20,9 +20,9 @@ const insertUser = db.prepare(`
 `);
 
 const seedUsers = [
-    { username: 'superadmin', role: 'SuperAdmin' },
-    { username: 'admin', role: 'Admin' },
-    { username: 'ops', role: 'Operations' },
+    { username: 'superadmin', role: 'Superadmin' },
+    { username: 'marketing', role: 'Marketing' },
+    { username: 'accounting', role: 'Accounting' },
     { username: 'client', role: 'Client' }
 ];
 

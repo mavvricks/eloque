@@ -20,10 +20,25 @@ const MenuCustomizer = ({ bookingData, updateBooking, onNext, onBack }) => {
     const [upgradeBreakdown, setUpgradeBreakdown] = useState([]);
     const [showBreakdown, setShowBreakdown] = useState(false);
 
+    // ==========================================
+    // PRICING CONTROL STATE
+    // ==========================================
+    const [pricingOverrides, setPricingOverrides] = useState({});
+
     // Initial load: Try to map previous selections if existing, else empty
     useEffect(() => {
-        // logic to preserve state if moving back/forth could go here
-        // For now, simpler to start clean or map if strictly needed
+        const fetchOverrides = async () => {
+            try {
+                const res = await fetch('http://localhost:3000/api/pricing');
+                if (res.ok) {
+                    const data = await res.json();
+                    setPricingOverrides(data.overrides || {});
+                }
+            } catch (error) {
+                console.error("Error fetching pricing overrides:", error);
+            }
+        };
+        fetchOverrides();
     }, []);
 
     // Price Calculation Logic
@@ -47,15 +62,18 @@ const MenuCustomizer = ({ bookingData, updateBooking, onNext, onBack }) => {
             selectedIds.forEach((id, index) => {
                 const dish = DISHES[category].find(d => d.id === id);
                 if (dish) {
+                    const overrideId = `dish_${dish.id}`;
+                    const customPrice = pricingOverrides[overrideId] !== undefined ? pricingOverrides[overrideId] : dish.priceAdj;
+
                     // 1. Always add the dish's specific price adjustment (e.g., Roast Beef +150)
-                    if (dish.priceAdj > 0) {
-                        adjustments += dish.priceAdj;
+                    if (customPrice > 0) {
+                        adjustments += customPrice;
                         breakdown.push({
                             name: dish.name,
                             category: categoryLabels[category],
                             type: 'Premium Upgrade',
-                            perHead: dish.priceAdj,
-                            total: dish.priceAdj * pax
+                            perHead: customPrice,
+                            total: customPrice * pax
                         });
                     }
 
@@ -154,11 +172,15 @@ const MenuCustomizer = ({ bookingData, updateBooking, onNext, onBack }) => {
                                         <p className="text-xs text-gray-500 line-clamp-2 mb-2">{dish.description}</p>
 
                                         <div className="flex items-center justify-between text-xs">
-                                            {dish.priceAdj > 0 ? (
-                                                <span className="font-semibold text-red-600">+₱{dish.priceAdj}/head</span>
-                                            ) : (
-                                                <span className="font-semibold text-green-600">✓ Base</span>
-                                            )}
+                                            {(() => {
+                                                const overrideId = `dish_${dish.id}`;
+                                                const customPrice = pricingOverrides[overrideId] !== undefined ? pricingOverrides[overrideId] : dish.priceAdj;
+                                                return customPrice > 0 ? (
+                                                    <span className="font-semibold text-red-600">+₱{customPrice}/head</span>
+                                                ) : (
+                                                    <span className="font-semibold text-green-600">✓ Base</span>
+                                                );
+                                            })()}
                                             {isExtra && (
                                                 <span className="bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded text-[10px] font-bold">EXTRA +₱150</span>
                                             )}

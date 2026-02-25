@@ -1,6 +1,24 @@
+import React, { useState, useEffect } from 'react';
 import { PACKAGES } from '../../data/mockData';
 
 const PackageSelector = ({ bookingData, updateBooking, onNext, onBack }) => {
+    const [pricingOverrides, setPricingOverrides] = useState({});
+
+    useEffect(() => {
+        fetchOverrides();
+    }, []);
+
+    const fetchOverrides = async () => {
+        try {
+            const res = await fetch('http://localhost:3000/api/pricing');
+            if (res.ok) {
+                const data = await res.json();
+                setPricingOverrides(data.overrides || {});
+            }
+        } catch (error) {
+            console.error("Error fetching pricing overrides:", error);
+        }
+    };
 
     const handleSelect = (pkg) => {
         updateBooking({
@@ -67,13 +85,13 @@ const PackageSelector = ({ bookingData, updateBooking, onNext, onBack }) => {
                                     <div className="flex items-end justify-between mb-6">
                                         <span className="text-sm font-medium text-gray-400">Base Price</span>
                                         <div className="text-right">
-                                            <span className="text-3xl font-bold text-gray-900">₱{pkg.basePrice}</span>
+                                            <span className="text-3xl font-bold text-gray-900">₱{pricingOverrides[`package_${pkg.id}`] !== undefined ? pricingOverrides[`package_${pkg.id}`] : pkg.basePrice}</span>
                                             <span className="text-xs text-gray-500 block">per head</span>
                                         </div>
                                     </div>
 
                                     <button
-                                        onClick={() => handleSelect(pkg)}
+                                        onClick={() => handleSelect({ ...pkg, basePrice: pricingOverrides[`package_${pkg.id}`] !== undefined ? pricingOverrides[`package_${pkg.id}`] : pkg.basePrice })}
                                         className="w-full py-4 rounded-xl font-bold text-sm uppercase tracking-wide transition-all transform active:scale-95 bg-gray-900 text-white hover:bg-primary-600 hover:shadow-lg shadow-md"
                                     >
                                         Select Package

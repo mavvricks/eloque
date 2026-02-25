@@ -108,7 +108,7 @@ exports.getLedger = async (req, res) => {
         const { status, startDate, endDate } = req.query;
 
         let query = `
-            SELECT p.*, b.event_date, b.client_full_name, u.username
+            SELECT p.*, b.event_date, b.client_full_name, b.package_id, u.username
             FROM payments p
             JOIN bookings b ON p.booking_id = b.id
             JOIN users u ON b.user_id = u.id
@@ -139,5 +139,69 @@ exports.getLedger = async (req, res) => {
     } catch (error) {
         console.error("Error fetching ledger:", error);
         res.status(500).json({ error: "Failed to fetch ledger" });
+    }
+};
+
+// Send a payment reminder
+exports.remindClient = async (req, res) => {
+    try {
+        const { paymentId } = req.params;
+
+        // Simulating the email/SMS reminder logic
+        const stmt = db.prepare('SELECT p.*, b.client_email, b.client_phone FROM payments p JOIN bookings b ON p.booking_id = b.id WHERE p.id = ?');
+        const paymentInfo = stmt.get(paymentId);
+
+        if (!paymentInfo) {
+            return res.status(404).json({ error: "Payment not found" });
+        }
+
+        console.log(`[SIMULATED NOTIFICATION] Reminder sent to ${paymentInfo.client_email} for payment #${paymentId} due on ${paymentInfo.due_date}`);
+
+        res.json({ success: true, message: "Reminder sent successfully" });
+    } catch (error) {
+        console.error("Error sending reminder:", error);
+        res.status(500).json({ error: "Failed to send reminder" });
+    }
+};
+
+// Get Refund Queue (Cancelled bookings with Verified payments)
+exports.getRefundQueue = async (req, res) => {
+    try {
+        const query = `
+            SELECT b.id as booking_id, b.client_full_name, b.client_email, b.event_date, b.total_cost,
+                   SUM(p.amount) as total_paid
+            FROM bookings b
+            JOIN payments p ON b.id = p.booking_id
+            WHERE b.status = 'Cancelled' AND p.status = 'Verified'
+            GROUP BY b.id
+        `;
+        const items = db.prepare(query).all();
+        res.json(items);
+    } catch (error) {
+        console.error("Error fetching refund queue:", error);
+        res.status(500).json({ error: "Failed to fetch refund queue" });
+    }
+};
+
+// Process Refund for a Booking
+exports.processRefund = async (req, res) => {
+    try {
+        const { bookingId } = req.params;
+        const verifiedBy = req.user?.username || 'finance';
+
+        // Update all verified payments for this booking to 'Refunded'
+        const stmt = db.prepare("UPDATE payments SET status = 'Refunded', verified_by = ?, verified_at = CURRENT_TIMESTAMP WHERE booking_id = ? AND status = 'Verified'");
+        const info = stmt.run(verifiedBy, bookingId);
+
+        if (info.changes === 0) {
+            return res.status(404).json({ error: "No verified payments found for this booking to refund." });
+        }
+
+        console.log(`[SIMULATED REFUND] Processed refund for booking #${bookingId}. Updated ${info.changes} payment records.`);
+
+        res.json({ success: true, message: "Refund processed successfully." });
+    } catch (error) {
+        console.error("Error processing refund:", error);
+        res.status(500).json({ error: "Failed to process refund" });
     }
 };

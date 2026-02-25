@@ -8,11 +8,26 @@ const CalendarView = ({ bookingData, updateBooking, onNext }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Calculate minimum date (Today + 7 days)
     const getMinDate = () => {
         const today = new Date();
         today.setDate(today.getDate() + 7);
         return today.toISOString().split('T')[0];
+    };
+
+    const formatTimeRange = (timeStr) => {
+        if (!timeStr) return '';
+        const [hours, minutes] = timeStr.split(':').map(Number);
+
+        const formatAMPM = (h, m) => {
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12;
+            h = h ? h : 12;
+            const mStr = m < 10 ? '0' + m : m;
+            return `${h}:${mStr} ${ampm}`;
+        };
+
+        const endHours = (hours + 4) % 24;
+        return `${formatAMPM(hours, minutes)} - ${formatAMPM(endHours, minutes)}`;
     };
 
     const handleDateChange = async (e) => {
@@ -63,14 +78,13 @@ const CalendarView = ({ bookingData, updateBooking, onNext }) => {
             return;
         }
         if (availability) {
-            // Pass availability data to parent to enforce limits in next steps
             updateBooking({
                 date: selectedDate,
-                time: selectedTime,
+                time: formatTimeRange(selectedTime),
                 remainingPax: availability.remainingPax
             });
         } else {
-            updateBooking({ date: selectedDate, time: selectedTime });
+            updateBooking({ date: selectedDate, time: formatTimeRange(selectedTime) });
         }
         onNext();
     };
@@ -124,22 +138,22 @@ const CalendarView = ({ bookingData, updateBooking, onNext }) => {
 
                     {/* Time Input */}
                     <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 hover:border-primary-300 transition-colors">
-                        <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Select Time</label>
-                        <div className="relative">
-                            <select
-                                value={selectedTime}
-                                onChange={(e) => setSelectedTime(e.target.value)}
-                                className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700 font-medium appearance-none bg-white"
-                            >
-                                <option value="">-- Choose Time Slot --</option>
-                                <option value="Lunch (11:00 AM - 3:00 PM)">Lunch Event (11:00 AM - 3:00 PM)</option>
-                                <option value="Dinner (6:00 PM - 10:00 PM)">Dinner Event (6:00 PM - 10:00 PM)</option>
-                                <option value="Whole Day">Whole Day Event</option>
-                            </select>
-                            <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                            </div>
-                        </div>
+                        <label className="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Select Event Start Time</label>
+                        <input
+                            type="time"
+                            value={selectedTime}
+                            onChange={(e) => setSelectedTime(e.target.value)}
+                            className="w-full p-4 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700 font-medium bg-white"
+                        />
+                        {selectedTime && (
+                            <p className="mt-3 font-medium text-lg text-primary-700 block bg-primary-50 p-3 rounded-lg border border-primary-200 text-center shadow-sm">
+                                {formatTimeRange(selectedTime)}
+                            </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-3 flex items-start gap-1">
+                            <svg className="w-4 h-4 text-primary-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Standard catering duration is <strong>4 hours</strong> from start time. An additional <strong>₱5,000 per hour</strong> will apply for overtime.</span>
+                        </p>
                     </div>
                 </div>
 

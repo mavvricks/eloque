@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     password TEXT NOT NULL,
     email TEXT,
     phone TEXT,
-    role TEXT CHECK( role IN ('SuperAdmin', 'Admin', 'Operations', 'Client', 'Finance') ) NOT NULL,
+    role TEXT CHECK( role IN ('Superadmin', 'Marketing', 'Accounting', 'Client') ) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -36,6 +36,12 @@ CREATE TABLE IF NOT EXISTS bookings (
     food_tasting_id INTEGER,
     total_cost DECIMAL(10, 2),
     status TEXT DEFAULT 'Pending',
+    outsourced_services TEXT,
+    theme_uploads TEXT,
+    special_instructions TEXT,
+    selected_menu TEXT,
+    live_status TEXT DEFAULT 'Not Started',
+    venue_building_details TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
