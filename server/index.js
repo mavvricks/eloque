@@ -56,6 +56,7 @@ app.get('/api/ops/bookings/:id', authenticateToken, opsController.getBookingDeta
 app.get('/api/finance/bookings', authenticateToken, financeController.getBookingsWithPayments);
 app.get('/api/finance/payments/pending', authenticateToken, financeController.getPendingPayments);
 app.put('/api/finance/payments/:id/verify', authenticateToken, financeController.verifyPayment);
+app.put('/api/finance/payments/:id', authenticateToken, financeController.updatePayment);
 app.get('/api/finance/ledger', authenticateToken, financeController.getLedger);
 app.post('/api/finance/remind/:paymentId', authenticateToken, financeController.remindClient);
 app.get('/api/finance/refunds/queue', authenticateToken, financeController.getRefundQueue);

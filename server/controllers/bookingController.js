@@ -15,9 +15,10 @@ const MAX_EVENTS_PER_DAY = 10;
 const createBooking = (req, res) => {
     try {
         const {
-            user_id, event_date, event_time, pax, budget, package_id,
+            user_id, event_date, event_time, pax, budget, package_id, event_type,
             client_full_name, venue_address_line, venue_street, venue_city, venue_province, venue_zip_code,
-            client_email, client_phone, total_cost, outsourced_services, selected_menu, venue_building_details
+            client_email, client_phone, total_cost, outsourced_services, selected_menu, venue_building_details,
+            transport_fee, labor_surcharge
         } = req.body;
         console.log("Creating booking:", req.body);
 
@@ -46,10 +47,10 @@ const createBooking = (req, res) => {
 
         // 3. Insert Booking
         const insertStmt = db.prepare(`
-            INSERT INTO bookings (user_id, event_date, event_time, pax, budget, package_id,
+            INSERT INTO bookings (user_id, event_date, event_time, pax, budget, package_id, event_type,
                 client_full_name, venue_address_line, venue_street, venue_city, venue_province, venue_zip_code,
-                client_email, client_phone, total_cost, outsourced_services, selected_menu, venue_building_details)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                client_email, client_phone, total_cost, outsourced_services, selected_menu, venue_building_details, transport_fee, labor_surcharge)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         // Stringify arrays if they exist, otherwise null
@@ -57,10 +58,11 @@ const createBooking = (req, res) => {
         const menuStr = selected_menu ? (typeof selected_menu === 'string' ? selected_menu : JSON.stringify(selected_menu)) : null;
 
         const info = insertStmt.run(
-            user_id, event_date, event_time, pax, budget, package_id,
+            user_id, event_date, event_time, pax, budget, package_id, event_type || null,
             client_full_name || null, venue_address_line || null, venue_street || null,
             venue_city || null, venue_province || null, venue_zip_code || null,
-            client_email || null, client_phone || null, total_cost || budget || null, outsourcedStr, menuStr, venue_building_details || null
+            client_email || null, client_phone || null, total_cost || budget || null, outsourcedStr, menuStr, venue_building_details || null,
+            transport_fee || 0, labor_surcharge || 0
         );
 
         // Auto-generate 3-tier payment schedule
@@ -80,10 +82,15 @@ const createBooking = (req, res) => {
                     VALUES (?, ?, 'Pending', CURRENT_TIMESTAMP, 'Pending', ?, ?)
                 `);
 
-                // 2 Payment Tranches: 50% Downpayment (due at reservation), 50% Final (due 10 days before)
-                insertPayment.run(bookingId, Math.round(cost * 0.50 * 100) / 100, 'DownPayment', reservationDue);
-                insertPayment.run(bookingId, Math.round(cost * 0.50 * 100) / 100, 'Final', finalDue.toISOString().split('T')[0]);
-                console.log(`Created 2 payment schedule rows for booking #${bookingId}`);
+                // 3 Payment Tranches: 10% Reservation, 70% Downpayment, 20% Final
+                const reservationAmount = Math.round(cost * 0.10 * 100) / 100;
+                const finalAmount = Math.round(cost * 0.20 * 100) / 100;
+                const downPaymentAmount = cost - reservationAmount - finalAmount;
+
+                insertPayment.run(bookingId, reservationAmount, 'Reservation', reservationDue);
+                insertPayment.run(bookingId, downPaymentAmount, 'DownPayment', downPaymentDue.toISOString().split('T')[0]);
+                insertPayment.run(bookingId, finalAmount, 'Final', finalDue.toISOString().split('T')[0]);
+                console.log(`Created 3 payment schedule rows for booking #${bookingId}`);
             }
         } catch (paymentError) {
             console.error("Payment schedule creation failed (booking still created):", paymentError);

@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS bookings (
     selected_menu TEXT,
     live_status TEXT DEFAULT 'Not Started',
     venue_building_details TEXT,
+    transport_fee DECIMAL(10, 2) DEFAULT 0,
+    labor_surcharge DECIMAL(10, 2) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );

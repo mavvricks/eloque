@@ -28,7 +28,7 @@ const ProtectedRoute = ({ allowedRoles }) => {
         const rolePath = {
             'Client': '/dashboard/client',
             'Marketing': '/dashboard/ops',
-            'Superadmin': '/dashboard/admin',
+            'Admin': '/dashboard/admin',
             'Accounting': '/dashboard/finance'
         };
         return <Navigate to={rolePath[user.role] || '/login'} replace />;
@@ -58,7 +58,7 @@ function App() {
                     </Route>
 
                     {/* Ops Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['Marketing', 'Superadmin']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['Marketing', 'Admin']} />}>
                         <Route path="/dashboard/ops" element={<DashboardOps />} />
                     </Route>
 
@@ -68,7 +68,7 @@ function App() {
                     </Route>
 
                     {/* Admin Routes */}
-                    <Route element={<ProtectedRoute allowedRoles={['Superadmin']} />}>
+                    <Route element={<ProtectedRoute allowedRoles={['Admin']} />}>
                         <Route path="/dashboard/admin" element={<DashboardAdmin />} />
                     </Route>
 

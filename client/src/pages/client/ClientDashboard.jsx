@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import ReceiptModal from '../../components/common/ReceiptModal';
 
 const PAYMENT_TYPE_LABELS = {
-    DownPayment: { label: 'Down Payment', pct: '50%', color: 'amber' },
-    Final: { label: 'Final Payment', pct: '50%', color: 'green' },
+    Reservation: { label: 'Reservation Fee', pct: '10%', color: 'blue' },
+    DownPayment: { label: 'Down Payment', pct: '70%', color: 'amber' },
+    Final: { label: 'Final Payment', pct: '20%', color: 'green' },
 };
 
 const Tooltip = ({ text }) => {
@@ -188,8 +189,6 @@ const ClientDashboard = () => {
             venue_address_line: booking.venue_address_line || '',
             venue_street: booking.venue_street || '',
             venue_city: booking.venue_city || '',
-            venue_province: booking.venue_province || '',
-            venue_zip_code: booking.venue_zip_code || '',
             client_email: booking.client_email || '',
             client_phone: booking.client_phone || ''
         });
@@ -221,7 +220,7 @@ const ClientDashboard = () => {
     };
 
     const formatAddress = (booking) => {
-        var parts = [booking.venue_address_line, booking.venue_street, booking.venue_city, booking.venue_province, booking.venue_zip_code].filter(Boolean);
+        var parts = [booking.venue_address_line, booking.venue_street, booking.venue_city].filter(Boolean);
         return parts.length > 0 ? parts.join(', ') : 'Not provided';
     };
 
@@ -367,6 +366,12 @@ const ClientDashboard = () => {
                                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                                                     {booking.pax + ' pax'}
                                                                 </span>
+                                                                {booking.event_type && (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                                                                        {booking.event_type}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -548,20 +553,23 @@ const ClientDashboard = () => {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="block text-xs text-gray-600 mb-1 font-medium">
-                                                            Reservation Time
-                                                            <Tooltip text="The time when your venue reservation starts. This is when setup begins." />
+                                                            Event Time
+                                                            <Tooltip text="The event time from your booking. You can change this via Edit Event." />
                                                         </label>
-                                                        <input type="time" value={eventDetailsForm[booking.id]?.reservation_time || ''} onChange={function (e) { handleDetailChange(booking.id, 'reservation_time', e.target.value); }}
-                                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700" />
+                                                        <div className="w-full p-3 border border-gray-200 rounded-lg bg-gray-100 text-gray-700 font-medium">
+                                                            {booking.event_time || 'Not set'}
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <label className="block text-xs text-gray-600 mb-1 font-medium">
-                                                            Serving Time
-                                                            <Tooltip text="The time when food service begins. Typically 30-60 minutes after guest arrival." />
-                                                        </label>
-                                                        <input type="time" value={eventDetailsForm[booking.id]?.serving_time || ''} onChange={function (e) { handleDetailChange(booking.id, 'serving_time', e.target.value); }}
-                                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none shadow-sm text-gray-700" />
-                                                    </div>
+                                                    {booking.event_type && (
+                                                        <div>
+                                                            <label className="block text-xs text-gray-600 mb-1 font-medium">
+                                                                Event Type
+                                                            </label>
+                                                            <div className="w-full p-3 border border-gray-200 rounded-lg bg-gray-100 text-gray-700 font-medium">
+                                                                {booking.event_type}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div className="md:col-span-2">
                                                         <label className="block text-xs text-gray-600 mb-1 font-medium">
                                                             Event Proper Schedule / Timeline
@@ -768,8 +776,9 @@ const ClientDashboard = () => {
                                     </div>
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1 font-medium">Event Time</label>
-                                        <input type="time" value={editForm.event_time} onChange={function (e) { setEditForm(Object.assign({}, editForm, { event_time: e.target.value })); }}
-                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700" />
+                                        <input type="text" value={editForm.event_time} onChange={function (e) { setEditForm(Object.assign({}, editForm, { event_time: e.target.value })); }}
+                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700"
+                                            placeholder="e.g. 2:00 PM - 6:00 PM" />
                                     </div>
                                 </div>
                                 <div>
@@ -808,18 +817,6 @@ const ClientDashboard = () => {
                                     <div>
                                         <label className="block text-xs text-gray-600 mb-1 font-medium">City</label>
                                         <input type="text" value={editForm.venue_city} onChange={function (e) { setEditForm(Object.assign({}, editForm, { venue_city: e.target.value })); }}
-                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700" />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1 font-medium">Province</label>
-                                        <input type="text" value={editForm.venue_province} onChange={function (e) { setEditForm(Object.assign({}, editForm, { venue_province: e.target.value })); }}
-                                            className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs text-gray-600 mb-1 font-medium">Zip Code</label>
-                                        <input type="text" value={editForm.venue_zip_code} onChange={function (e) { setEditForm(Object.assign({}, editForm, { venue_zip_code: e.target.value })); }}
                                             className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-gray-700" />
                                     </div>
                                 </div>

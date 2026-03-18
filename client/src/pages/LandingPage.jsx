@@ -95,7 +95,7 @@ const LandingPage = () => {
                                             user.role === 'Client' ? '/dashboard/client' :
                                                 user.role === 'Marketing' ? '/dashboard/ops' :
                                                     user.role === 'Accounting' ? '/dashboard/finance' :
-                                                        (user.role === 'Superadmin') ? '/dashboard/admin' : '/'
+                                                        (user.role === 'Admin') ? '/dashboard/admin' : '/'
                                         }
                                         className="text-white hover:text-yellow-400 text-sm font-medium uppercase tracking-wider"
                                     >

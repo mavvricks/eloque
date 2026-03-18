@@ -25,7 +25,7 @@ const Login = () => {
                 const rolePaths = {
                     'Client': '/',
                     'Marketing': '/dashboard/ops',
-                    'Superadmin': '/dashboard/admin',
+                    'Admin': '/dashboard/admin',
                     'Accounting': '/dashboard/finance'
                 };
                 const targetPath = rolePaths[result.role] || '/';

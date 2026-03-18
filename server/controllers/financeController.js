@@ -11,6 +11,7 @@ exports.getBookingsWithPayments = async (req, res) => {
         const bookings = db.prepare(`
             SELECT b.id, b.event_date, b.event_time, b.pax, b.budget, b.total_cost,
                    b.client_full_name, b.client_email, b.client_phone, b.status,
+                   b.transport_fee, b.labor_surcharge,
                    u.username
             FROM bookings b
             JOIN users u ON b.user_id = u.id
@@ -99,6 +100,30 @@ exports.verifyPayment = async (req, res) => {
     } catch (error) {
         console.error("Error verifying payment:", error);
         res.status(500).json({ error: "Failed to verify payment" });
+    }
+};
+
+// Update payment term (amount, due_date)
+exports.updatePayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, due_date } = req.body;
+
+        if (amount === undefined || !due_date) {
+            return res.status(400).json({ error: "Amount and due_date are required" });
+        }
+
+        const stmt = db.prepare('UPDATE payments SET amount = ?, due_date = ? WHERE id = ?');
+        const info = stmt.run(amount, due_date, id);
+
+        if (info.changes === 0) {
+            return res.status(404).json({ error: "Payment not found" });
+        }
+
+        res.json({ success: true, message: "Payment updated successfully" });
+    } catch (error) {
+        console.error("Error updating payment:", error);
+        res.status(500).json({ error: "Failed to update payment" });
     }
 };
 

@@ -65,11 +65,11 @@ exports.updateEmployee = async (req, res) => {
             return res.status(400).json({ error: "Invalid role specified" });
         }
 
-        // Ensure we don't accidentally update a Superadmin or Client via this endpoint
+        // Ensure we don't accidentally update a Admin or Client via this endpoint
         const checkRoleStmt = db.prepare('SELECT role FROM users WHERE id = ?');
         const existingUser = checkRoleStmt.get(id);
 
-        if (!existingUser || ['Superadmin', 'Client'].includes(existingUser.role)) {
+        if (!existingUser || ['Admin', 'Client'].includes(existingUser.role)) {
             return res.status(403).json({ error: "Cannot modify this user" });
         }
 
@@ -114,7 +114,7 @@ exports.deleteEmployee = async (req, res) => {
         const checkRoleStmt = db.prepare('SELECT role FROM users WHERE id = ?');
         const existingUser = checkRoleStmt.get(id);
 
-        if (!existingUser || ['Superadmin', 'Client'].includes(existingUser.role)) {
+        if (!existingUser || ['Admin', 'Client'].includes(existingUser.role)) {
             return res.status(403).json({ error: "Cannot delete this user" });
         }
 

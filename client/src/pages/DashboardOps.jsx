@@ -9,6 +9,7 @@ const DashboardOps = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('calendar');
+    const [inquiryViewMode, setInquiryViewMode] = useState('list');
     const [selectedMonth, setSelectedMonth] = useState(new Date());
 
     // PDF Export State
@@ -607,53 +608,93 @@ const DashboardOps = () => {
     const renderInquiries = () => {
         const pendingBookings = bookings.filter(b => b.status === 'Pending');
         return (
-            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                <ul className="divide-y divide-gray-200">
-                    {pendingBookings.length === 0 ? <li className="p-6 text-gray-500 text-center">No pending inquiries.</li> : null}
-                    {pendingBookings.map(booking => (
-                        <li key={booking.id} className="block hover:bg-gray-50">
-                            <div className="px-4 py-4 sm:px-6">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-primary-600 truncate">
-                                        Booking #{booking.id} - {booking.client_full_name || booking.username}
-                                    </p>
-                                    <div className="ml-2 flex-shrink-0 flex">
-                                        <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                            {booking.status}
-                                        </p>
+            <div className="space-y-4">
+                <div className="flex justify-end mb-4">
+                    <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+                        <button onClick={() => setInquiryViewMode('list')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${inquiryViewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                            <div className="flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                                List
+                            </div>
+                        </button>
+                        <button onClick={() => setInquiryViewMode('card')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${inquiryViewMode === 'card' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                            <div className="flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                                Cards
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                {inquiryViewMode === 'list' ? (
+                    <div className="bg-white shadow overflow-hidden rounded-xl border border-gray-200">
+                        <ul className="divide-y divide-gray-200">
+                            {pendingBookings.length === 0 ? <li className="p-8 text-gray-500 text-center">No pending inquiries.</li> : null}
+                            {pendingBookings.map(booking => (
+                                <li key={booking.id} className="block hover:bg-gray-50 transition-colors">
+                                    <div className="px-6 py-5">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-bold text-primary-700 truncate">
+                                                Booking #{booking.id} - {booking.client_full_name || booking.username}
+                                            </p>
+                                            <div className="ml-2 flex-shrink-0 flex">
+                                                <p className="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full bg-yellow-100 text-yellow-800">
+                                                    {booking.status}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 sm:flex sm:justify-between items-center">
+                                            <div className="sm:flex gap-6">
+                                                <p className="flex items-center text-sm text-gray-600">
+                                                    <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                                    {booking.event_date}
+                                                </p>
+                                                <p className="flex items-center text-sm text-gray-600">
+                                                    <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                    {booking.pax} pax
+                                                </p>
+                                                <p className="flex items-center text-sm text-gray-600">
+                                                    <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    ₱{booking.budget?.toLocaleString() || 'N/A'}
+                                                </p>
+                                            </div>
+                                            <div className="mt-4 flex items-center text-sm sm:mt-0 space-x-3">
+                                                <button onClick={() => updateStatus(booking.id, 'Confirmed')} className="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 font-medium px-4 py-1.5 rounded-lg transition-colors">Approve</button>
+                                                <button onClick={() => updateStatus(booking.id, 'Cancelled')} className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 font-medium px-4 py-1.5 rounded-lg transition-colors">Reject</button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="mt-2 sm:flex sm:justify-between">
-                                    <div className="sm:flex">
-                                        <p className="flex items-center text-sm text-gray-500 mr-6">
-                                            Date: {booking.event_date}
-                                        </p>
-                                        <p className="flex items-center text-sm text-gray-500 mr-6">
-                                            Pax: {booking.pax}
-                                        </p>
-                                        <p className="flex items-center text-sm text-gray-500">
-                                            Budget: ₱{booking.budget?.toLocaleString()}
-                                        </p>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {pendingBookings.length === 0 ? <div className="col-span-full p-8 text-gray-500 text-center bg-white rounded-xl shadow-sm border border-gray-200">No pending inquiries.</div> : null}
+                        {pendingBookings.map(booking => (
+                            <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200">
+                                <div className="p-6">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex-1 pr-4">
+                                            <span className="text-xs font-bold text-primary-600 uppercase tracking-wide">Booking #{booking.id}</span>
+                                            <h3 className="text-lg font-bold text-gray-900 mt-1 leading-tight">{booking.client_full_name || booking.username}</h3>
+                                        </div>
+                                        <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">{booking.status}</span>
                                     </div>
-                                    <div className="mt-2 flex items-center text-sm sm:mt-0 space-x-2">
-                                        <button
-                                            onClick={() => updateStatus(booking.id, 'Confirmed')}
-                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded"
-                                        >
-                                            Approve
-                                        </button>
-                                        <button
-                                            onClick={() => updateStatus(booking.id, 'Cancelled')}
-                                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded"
-                                        >
-                                            Reject
-                                        </button>
+                                    <div className="space-y-3 mb-6 bg-gray-50 p-4 rounded-lg">
+                                        <p className="flex justify-between text-sm"><span className="text-gray-500 font-medium">Event Date</span><span className="font-bold text-gray-900">{booking.event_date}</span></p>
+                                        <p className="flex justify-between text-sm"><span className="text-gray-500 font-medium">Guests</span><span className="font-bold text-gray-900">{booking.pax} pax</span></p>
+                                        <p className="flex justify-between text-sm"><span className="text-gray-500 font-medium">Budget</span><span className="font-bold text-primary-700">₱{booking.budget?.toLocaleString() || 'N/A'}</span></p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button onClick={() => updateStatus(booking.id, 'Confirmed')} className="flex-1 bg-green-50 text-green-700 hover:bg-green-100 font-bold py-2.5 rounded-lg text-sm transition-colors border border-green-200 shadow-sm">Approve</button>
+                                        <button onClick={() => updateStatus(booking.id, 'Cancelled')} className="flex-1 bg-red-50 text-red-700 hover:bg-red-100 font-bold py-2.5 rounded-lg text-sm transition-colors border border-red-200 shadow-sm">Reject</button>
                                     </div>
                                 </div>
                             </div>
-                        </li>
-                    ))}
-                </ul>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     };

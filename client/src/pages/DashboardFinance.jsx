@@ -2,22 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import ReceiptModal from '../components/common/ReceiptModal';
+import PaymentTermEditorModal from '../components/finance/PaymentTermEditorModal';
 
 const PAYMENT_TYPE_LABELS = {
-    DownPayment: { label: 'Down Payment', pct: '50%', icon: 'D' },
-    Final: { label: 'Final Payment', pct: '50%', icon: 'F' },
+    Reservation: { label: 'Reservation Fee', pct: '10%', icon: 'R' },
+    DownPayment: { label: 'Down Payment', pct: '70%', icon: 'D' },
+    Final: { label: 'Final Payment', pct: '20%', icon: 'F' },
 };
 
 const DashboardFinance = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('bookings');
+    const [paymentViewMode, setPaymentViewMode] = useState('list');
     const [bookings, setBookings] = useState([]);
     const [ledgerPayments, setLedgerPayments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [toast, setToast] = useState(null);
     const [expandedBooking, setExpandedBooking] = useState(null);
     const [receiptModal, setReceiptModal] = useState({ isOpen: false, payment: null, booking: null });
+    const [editPaymentModal, setEditPaymentModal] = useState({ isOpen: false, payment: null });
 
     // Refund Management State
     const [refundQueue, setRefundQueue] = useState([]);
@@ -223,199 +227,225 @@ const DashboardFinance = () => {
                         ) : bookings.length === 0 ? (
                             <div className="p-6 text-center text-gray-500">No bookings found.</div>
                         ) : (
-                            <div className="space-y-6">
-                                {bookings.map(function (booking) {
-                                    var progress = getBookingProgress(booking.payments);
-                                    var isExpanded = expandedBooking === booking.id;
-                                    var totalCost = booking.totalCost || 0;
-                                    var paidAmount = booking.payments
-                                        .filter(function (p) { return p.status === 'Verified'; })
-                                        .reduce(function (sum, p) { return sum + p.amount; }, 0);
-                                    var remainingBalance = totalCost - paidAmount;
-
-                                    return (
-                                        <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                            <div
-                                                className="px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                                                onClick={() => setExpandedBooking(isExpanded ? null : booking.id)}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">
-                                                            {'#' + booking.id}
-                                                        </div>
-                                                        <div>
-                                                            <h3 className="font-semibold text-gray-900">
-                                                                {booking.client_full_name || booking.username}
-                                                            </h3>
-                                                            <p className="text-sm text-gray-500">
-                                                                {'Event: ' + booking.event_date + ' | ' + booking.pax + ' pax'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-6">
-                                                        <div className="text-right">
-                                                            <p className="text-xs text-gray-400 uppercase tracking-wider">Total Cost</p>
-                                                            <p className="text-lg font-bold text-gray-900">{'P' + totalCost.toLocaleString()}</p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-xs text-gray-400 uppercase tracking-wider">Payments</p>
-                                                            <p className="text-sm font-semibold">
-                                                                <span className="text-green-600">{progress.verified}</span>
-                                                                <span className="text-gray-400">{'/' + progress.total}</span>
-                                                                <span className="text-gray-400 text-xs ml-1">verified</span>
-                                                            </p>
-                                                        </div>
-                                                        <svg
-                                                            className={'w-5 h-5 text-gray-400 transition-transform duration-200' + (isExpanded ? ' rotate-180' : '')}
-                                                            fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                                        >
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                                        </svg>
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-3 w-full bg-gray-100 rounded-full h-2">
-                                                    <div
-                                                        className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                                                        style={{ width: (totalCost > 0 ? (paidAmount / totalCost) * 100 : 0) + '%' }}
-                                                    ></div>
-                                                </div>
-                                                <div className="flex justify-between mt-1 text-xs text-gray-400">
-                                                    <span>{'Paid: P' + paidAmount.toLocaleString()}</span>
-                                                    <span>{'Balance: P' + remainingBalance.toLocaleString()}</span>
-                                                </div>
+                            <div>
+                                <div className="flex justify-end mb-4">
+                                    <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+                                        <button onClick={() => setPaymentViewMode('list')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${paymentViewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                                            <div className="flex items-center gap-1">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                                                List
                                             </div>
+                                        </button>
+                                        <button onClick={() => setPaymentViewMode('card')} className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${paymentViewMode === 'card' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                                            <div className="flex items-center gap-1">
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                                                Cards
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className={paymentViewMode === 'card' ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" : "space-y-6"}>
+                                    {bookings.map(function (booking) {
+                                        var progress = getBookingProgress(booking.payments);
+                                        var isExpanded = expandedBooking === booking.id;
+                                        var totalCost = booking.totalCost || 0;
+                                        var paidAmount = booking.payments
+                                            .filter(function (p) { return p.status === 'Verified'; })
+                                            .reduce(function (sum, p) { return sum + p.amount; }, 0);
+                                        var remainingBalance = totalCost - paidAmount;
 
-                                            {isExpanded && (
-                                                <div className="border-t border-gray-100 px-6 py-4 bg-gray-50 animate-fadeIn">
-                                                    <div className="mb-4 flex flex-wrap gap-4 text-sm text-gray-600">
-                                                        {booking.client_email && (
-                                                            <span className="flex items-center gap-1">
-                                                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                                                {booking.client_email}
-                                                            </span>
-                                                        )}
-                                                        {booking.client_phone && (
-                                                            <span className="flex items-center gap-1">
-                                                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                                                {booking.client_phone}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm">
-                                                            <thead>
-                                                                <tr className="text-xs uppercase text-gray-400 border-b border-gray-200">
-                                                                    <th className="text-left py-2 pr-4">Payment Tier</th>
-                                                                    <th className="text-right py-2 px-4">Amount</th>
-                                                                    <th className="text-center py-2 px-4">Due Date</th>
-                                                                    <th className="text-center py-2 px-4">Status</th>
-                                                                    <th className="text-right py-2 pl-4">Actions</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {booking.payments.map(function (payment) {
-                                                                    var typeInfo = PAYMENT_TYPE_LABELS[payment.payment_type] || { label: payment.payment_type, pct: '', icon: '-' };
-                                                                    var badge = getStatusBadge(payment.status, payment.due_date);
-
-                                                                    return (
-                                                                        <tr key={payment.id} className="border-b border-gray-100 last:border-b-0">
-                                                                            <td className="py-3 pr-4">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-lg w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center font-bold text-blue-600">{typeInfo.icon}</span>
-                                                                                    <div>
-                                                                                        <p className="font-medium text-gray-900">{typeInfo.label}</p>
-                                                                                        <p className="text-xs text-gray-400">{typeInfo.pct + ' of total'}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="text-right py-3 px-4">
-                                                                                <span className="font-semibold text-gray-900">{'P' + (payment.amount ? payment.amount.toLocaleString() : '0')}</span>
-                                                                            </td>
-                                                                            <td className="text-center py-3 px-4">
-                                                                                <span className="text-gray-600">{payment.due_date || '-'}</span>
-                                                                            </td>
-                                                                            <td className="text-center py-3 px-4">
-                                                                                <span className={'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ' + badge.cls}>
-                                                                                    {badge.text}
-                                                                                </span>
-                                                                            </td>
-                                                                            <td className="text-right py-3 pl-4">
-                                                                                {payment.status === 'Pending' ? (
-                                                                                    <div className="flex justify-end gap-2">
-                                                                                        <button
-                                                                                            onClick={function (e) { e.stopPropagation(); handleVerify(payment.id, 'Verify'); }}
-                                                                                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors"
-                                                                                        >
-                                                                                            Verify
-                                                                                        </button>
-                                                                                        <button
-                                                                                            onClick={function (e) { e.stopPropagation(); handleVerify(payment.id, 'Reject'); }}
-                                                                                            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors"
-                                                                                        >
-                                                                                            Reject
-                                                                                        </button>
-                                                                                        {(payment.status === 'Pending' || new Date(payment.due_date) < new Date()) && (
-                                                                                            <button
-                                                                                                onClick={function (e) { e.stopPropagation(); handleSendReminder(payment.id); }}
-                                                                                                className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors flex items-center gap-1"
-                                                                                            >
-                                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                                                                                                Remind
-                                                                                            </button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                ) : payment.status === 'Verified' ? (
-                                                                                    <div className="flex justify-end items-center gap-3">
-                                                                                        <span className="text-green-600 text-xs font-medium">Verified</span>
-                                                                                        <button
-                                                                                            onClick={function (e) { e.stopPropagation(); setReceiptModal({ isOpen: true, payment: payment, booking: booking }); }}
-                                                                                            className="text-primary-600 hover:text-primary-800 text-xs font-medium underline flex items-center gap-1"
-                                                                                        >
-                                                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                                                                            Receipt
-                                                                                        </button>
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <span className="text-gray-400 text-xs">-</span>
-                                                                                )}
-                                                                            </td>
-                                                                        </tr>
-                                                                    );
-                                                                })}
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-
-                                                    <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
-                                                        <div className="text-xs text-gray-400">
-                                                            {'Booking #' + booking.id + ' | Status: ' + booking.status}
-                                                        </div>
-                                                        <div className="flex gap-6 text-sm">
-                                                            <div>
-                                                                <span className="text-gray-400">Paid: </span>
-                                                                <span className="font-semibold text-green-600">{'P' + paidAmount.toLocaleString()}</span>
+                                        return (
+                                            <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                                <div
+                                                    className="px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                                                    onClick={() => setExpandedBooking(isExpanded ? null : booking.id)}
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">
+                                                                {'#' + booking.id}
                                                             </div>
                                                             <div>
-                                                                <span className="text-gray-400">Remaining: </span>
-                                                                <span className={'font-semibold ' + (remainingBalance > 0 ? 'text-red-600' : 'text-green-600')}>
-                                                                    {'P' + remainingBalance.toLocaleString()}
-                                                                </span>
+                                                                <h3 className="font-semibold text-gray-900">
+                                                                    {booking.client_full_name || booking.username}
+                                                                </h3>
+                                                                <p className="text-sm text-gray-500">
+                                                                    {'Event: ' + booking.event_date + ' | ' + booking.pax + ' pax'}
+                                                                </p>
                                                             </div>
                                                         </div>
+                                                        <div className="flex items-center gap-6">
+                                                            <div className="text-right">
+                                                                <p className="text-xs text-gray-400 uppercase tracking-wider">Total Cost</p>
+                                                                <p className="text-lg font-bold text-gray-900">{'P' + totalCost.toLocaleString()}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <p className="text-xs text-gray-400 uppercase tracking-wider">Payments</p>
+                                                                <p className="text-sm font-semibold">
+                                                                    <span className="text-green-600">{progress.verified}</span>
+                                                                    <span className="text-gray-400">{'/' + progress.total}</span>
+                                                                    <span className="text-gray-400 text-xs ml-1">verified</span>
+                                                                </p>
+                                                            </div>
+                                                            <svg
+                                                                className={'w-5 h-5 text-gray-400 transition-transform duration-200' + (isExpanded ? ' rotate-180' : '')}
+                                                                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                                            >
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                            </svg>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 w-full bg-gray-100 rounded-full h-2">
+                                                        <div
+                                                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                                            style={{ width: (totalCost > 0 ? (paidAmount / totalCost) * 100 : 0) + '%' }}
+                                                        ></div>
+                                                    </div>
+                                                    <div className="flex justify-between mt-1 text-xs text-gray-400">
+                                                        <span>{'Paid: P' + paidAmount.toLocaleString()}</span>
+                                                        <span>{'Balance: P' + remainingBalance.toLocaleString()}</span>
                                                     </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
+
+                                                {isExpanded && (
+                                                    <div className="border-t border-gray-100 px-6 py-4 bg-gray-50 animate-fadeIn">
+                                                        <div className="mb-4 flex flex-wrap gap-4 text-sm text-gray-600">
+                                                            {booking.client_email && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                                    {booking.client_email}
+                                                                </span>
+                                                            )}
+                                                            {booking.client_phone && (
+                                                                <span className="flex items-center gap-1">
+                                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                                                    {booking.client_phone}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-sm">
+                                                                <thead>
+                                                                    <tr className="text-xs uppercase text-gray-400 border-b border-gray-200">
+                                                                        <th className="text-left py-2 pr-4">Payment Tier</th>
+                                                                        <th className="text-right py-2 px-4">Amount</th>
+                                                                        <th className="text-center py-2 px-4">Due Date</th>
+                                                                        <th className="text-center py-2 px-4">Status</th>
+                                                                        <th className="text-right py-2 pl-4">Actions</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {booking.payments.map(function (payment) {
+                                                                        var typeInfo = PAYMENT_TYPE_LABELS[payment.payment_type] || { label: payment.payment_type, pct: '', icon: '-' };
+                                                                        var badge = getStatusBadge(payment.status, payment.due_date);
+
+                                                                        return (
+                                                                            <tr key={payment.id} className="border-b border-gray-100 last:border-b-0">
+                                                                                <td className="py-3 pr-4">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="text-lg w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center font-bold text-blue-600">{typeInfo.icon}</span>
+                                                                                        <div>
+                                                                                            <p className="font-medium text-gray-900">{typeInfo.label}</p>
+                                                                                            <p className="text-xs text-gray-400">{typeInfo.pct + ' of total'}</p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </td>
+                                                                                <td className="text-right py-3 px-4">
+                                                                                    <span className="font-semibold text-gray-900">{'P' + (payment.amount ? payment.amount.toLocaleString() : '0')}</span>
+                                                                                </td>
+                                                                                <td className="text-center py-3 px-4">
+                                                                                    <span className="text-gray-600">{payment.due_date || '-'}</span>
+                                                                                </td>
+                                                                                <td className="text-center py-3 px-4">
+                                                                                    <span className={'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ' + badge.cls}>
+                                                                                        {badge.text}
+                                                                                    </span>
+                                                                                </td>
+                                                                                <td className="text-right py-3 pl-4">
+                                                                                    {payment.status === 'Pending' ? (
+                                                                                        <div className="flex justify-end gap-2">
+                                                                                            <button
+                                                                                                onClick={function (e) { e.stopPropagation(); handleVerify(payment.id, 'Verify'); }}
+                                                                                                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors"
+                                                                                            >
+                                                                                                Verify
+                                                                                            </button>
+                                                                                            <button
+                                                                                                onClick={function (e) { e.stopPropagation(); handleVerify(payment.id, 'Reject'); }}
+                                                                                                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors"
+                                                                                            >
+                                                                                                Reject
+                                                                                            </button>
+                                                                                            {(payment.status === 'Pending' || new Date(payment.due_date) < new Date()) && (
+                                                                                                <>
+                                                                                                    <button
+                                                                                                        onClick={(e) => { e.stopPropagation(); setEditPaymentModal({ isOpen: true, payment }); }}
+                                                                                                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors flex items-center gap-1"
+                                                                                                    >
+                                                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                                                                        Edit
+                                                                                                    </button>
+                                                                                                    <button
+                                                                                                        onClick={function (e) { e.stopPropagation(); handleSendReminder(payment.id); }}
+                                                                                                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-xs font-medium shadow-sm transition-colors flex items-center gap-1"
+                                                                                                    >
+                                                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                                                                                                        Remind
+                                                                                                    </button>
+                                                                                                </>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ) : payment.status === 'Verified' ? (
+                                                                                        <div className="flex justify-end items-center gap-3">
+                                                                                            <span className="text-green-600 text-xs font-medium">Verified</span>
+                                                                                            <button
+                                                                                                onClick={function (e) { e.stopPropagation(); setReceiptModal({ isOpen: true, payment: payment, booking: booking }); }}
+                                                                                                className="text-primary-600 hover:text-primary-800 text-xs font-medium underline flex items-center gap-1"
+                                                                                            >
+                                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                                                Receipt
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <span className="text-gray-400 text-xs">-</span>
+                                                                                    )}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+
+                                                        <div className="mt-4 pt-3 border-t border-gray-200 flex justify-between items-center">
+                                                            <div className="text-xs text-gray-400">
+                                                                {'Booking #' + booking.id + ' | Status: ' + booking.status}
+                                                            </div>
+                                                            <div className="flex gap-6 text-sm">
+                                                                <div>
+                                                                    <span className="text-gray-400">Paid: </span>
+                                                                    <span className="font-semibold text-green-600">{'P' + paidAmount.toLocaleString()}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <span className="text-gray-400">Remaining: </span>
+                                                                    <span className={'font-semibold ' + (remainingBalance > 0 ? 'text-red-600' : 'text-green-600')}>
+                                                                        {'P' + remainingBalance.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         )}
                     </div>
                 )}
-
                 {activeTab === 'ledger' && (
                     <div>
                         <div className="bg-white p-4 rounded-lg shadow mb-6 flex flex-wrap gap-4 items-end">
@@ -612,6 +642,18 @@ const DashboardFinance = () => {
                 onClose={() => setReceiptModal({ isOpen: false, payment: null, booking: null })}
                 payment={receiptModal.payment}
                 booking={receiptModal.booking}
+            />
+
+            {/* Payment Term Editor Modal */}
+            <PaymentTermEditorModal
+                isOpen={editPaymentModal.isOpen}
+                onClose={() => setEditPaymentModal({ isOpen: false, payment: null })}
+                payment={editPaymentModal.payment}
+                onSuccess={() => {
+                    setEditPaymentModal({ isOpen: false, payment: null });
+                    setToast({ message: 'Payment term updated successfully!', type: 'success' });
+                    fetchBookings(); // Refresh data
+                }}
             />
 
             {toast && (
